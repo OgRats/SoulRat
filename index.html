@@ -1,0 +1,1029 @@
+<!DOCTYPE html>    
+<html lang="es">    
+<head>    
+    <meta charset="UTF-8">    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">    
+    <title>SoulRat Ultimate</title>    
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>    
+        body {    
+            margin: 0; background-color: #000000; color: white;    
+            font-family: 'Press Start 2P', monospace; display: flex;    
+            justify-content: center; align-items: center; height: 100vh;    
+            overflow: hidden; user-select: none; touch-action: none;    
+        }    
+        #game-container {    
+            position: relative; width: 100vw; height: 100vh;    
+            max-width: 800px; max-height: 600px;    
+            box-shadow: 0 0 40px rgba(0,0,0,0.95); background: #000; overflow: hidden;    
+        }    
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; transition: filter 0.3s ease; }    
+        
+        /* Efecto Blur dinámico cuando el juego está corriendo o pausado */
+        .blur-bg { filter: blur(6px); }
+
+        .screen {    
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;    
+            display: flex; flex-direction: column; justify-content: center;    
+            align-items: center; background: rgba(8, 8, 14, 0.85); z-index: 20;    
+            padding: 20px; box-sizing: border-box; transition: opacity 0.4s ease, transform 0.4s ease;    
+        }    
+        #menu-screen {    
+            background-image: url('assets/fondo.png');    
+            background-size: cover;    
+            background-position: center;    
+            image-rendering: pixelated;    
+        }    
+        .menu-overlay {    
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;    
+            background: rgba(0, 0, 0, 0.4); z-index: -1;    
+        }    
+        .hidden { display: none !important; opacity: 0; transform: scale(0.95); }    
+        h1 { font-size: 34px; color: #3498db; margin-bottom: 20px; text-shadow: 4px 4px #000; text-align: center; z-index: 21; }    
+        h2 { font-size: 11px; margin-bottom: 15px; text-align: center; color: #aaa; line-height: 1.5; z-index: 21; }    
+            
+        .level-selector-container {    
+            width: 320px; height: 160px; overflow-y: scroll;    
+            border: 4px solid #3498db; background: #0b0b12;    
+            margin-bottom: 15px; padding: 10px; display: flex;    
+            flex-direction: column; gap: 8px; box-sizing: border-box;    
+        }    
+        .level-selector-container::-webkit-scrollbar { width: 8px; }    
+        .level-selector-container::-webkit-scrollbar-thumb { background: #3498db; border-radius: 2px; }    
+    
+        .level-btn {    
+            background: #151522; color: #fff; border: 2px solid #2c3e50;    
+            padding: 12px; font-family: 'Press Start 2P', monospace; font-size: 10px;    
+            cursor: pointer; text-align: center; image-rendering: pixelated; transition: transform 0.1s;
+        }    
+        .level-btn:active { transform: scale(0.95); }
+    
+        .btn-custom {    
+            width: 250px; height: 48px; font-family: 'Press Start 2P', monospace; font-size: 9px;    
+            color: white; border: none; cursor: pointer; background-size: 100% 100%;    
+            background-repeat: no-repeat; background-color: transparent; display: flex;    
+            justify-content: center; align-items: center; text-shadow: 2px 2px #000; margin: 6px;    
+            image-rendering: pixelated; transition: transform 0.1s ease, filter 0.2s ease; z-index: 21;    
+        }    
+        .btn-custom:hover { filter: brightness(1.1); }    
+        /* Efecto feedback clic-presionado */
+        .btn-custom:active { transform: scale(0.92); }
+
+        .btn-blue { background-color: #3498db; border-radius: 4px; }    
+        .btn-red { background-color: #e74c3c; border-radius: 4px; }    
+        .btn-yellow { background-color: #f1c40f; color: #000; text-shadow: none; border-radius: 4px; }    
+        
+        .social-container { display: flex; gap: 10px; margin-top: 10px; z-index: 21; }    
+        .btn-social { width: 120px; height: 40px; font-size: 8px; }    
+        .stats-text { font-size: 10px; line-height: 1.8; text-align: center; margin: 15px 0; color: #f1c40f; }    
+        
+        .top-right-corner {    
+            position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 30;    
+        }    
+        .btn-corner {    
+            width: 48px; height: 44px; font-family: 'Press Start 2P', monospace; font-size: 8px;    
+            color: white; border: none; cursor: pointer; display: flex; justify-content: center;     
+            align-items: center; background-size: 100% 100%; image-rendering: pixelated; transition: transform 0.1s;
+        }    
+        .btn-corner:active { transform: scale(0.9); }
+
+        .profile-input {    
+            background: #111; border: 2px solid #3498db; color: white; padding: 8px;    
+            font-family: 'Press Start 2P'; font-size: 10px; text-align: center; width: 220px; margin: 10px 0;    
+        }    
+        
+        .setting-row {    
+            display: flex; justify-content: space-between; align-items: center;    
+            width: 280px; font-size: 8px; margin: 8px 0;    
+        }    
+        .setting-row select, .setting-row input {    
+            font-family: 'Press Start 2P'; font-size: 8px; background: #111; color: #fff; border: 1px solid #fff;    
+        }    
+
+        /* Estilos Avatar y Tabla Leaderboard */
+        .avatar-preview { width: 48px; height: 48px; object-fit: cover; border: 2px solid #fff; margin-bottom: 10px; }
+        .leaderboard-table { width: 100%; max-width: 340px; border-collapse: collapse; font-size: 7px; margin-bottom: 15px; }
+        .leaderboard-table th, .leaderboard-table td { padding: 6px; border: 1px solid #3498db; text-align: left; }
+        .leaderboard-table th { background: #151522; color: #f1c40f; }
+        .leaderboard-avatar { width: 16px; height: 16px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
+    </style>    
+</head>    
+<body>    
+    
+<div id="game-container">    
+    <div class="top-right-corner" id="menu-corner-actions">    
+        <button class="btn-corner" id="btn-menu-corner-fs" style="background-image: url('assets/btn_rojo.png'); background-color: transparent;">FS</button>    
+    </div>    
+    
+    <div id="menu-screen" class="screen">    
+        <div class="menu-overlay"></div>    
+        <h1>SOULRAT</h1>    
+        <div id="main-buttons" style="display: flex; flex-direction: column; align-items: center;">    
+            <button class="btn-custom btn-blue" id="btn-main-play">PLAY</button>    
+            <button class="btn-custom btn-blue" id="btn-profile-cfg">PERFIL</button>    
+            <button class="btn-custom btn-blue" id="btn-leaderboard-open">LEADERBOARD</button>
+            <button class="btn-custom btn-yellow" id="btn-settings-main">SETTINGS</button>    
+        </div>    
+        <div id="level-area" class="hidden" style="display: flex; flex-direction: column; align-items: center;">    
+            <h2>SELECCIONA NIVEL<br>(DESBLOQUEA JUGANDO)</h2>    
+            <div class="level-selector-container" id="level-list"></div>    
+            <button class="btn-custom btn-red" id="btn-level-back" style="height: 40px; width: 200px;">ATRÁS</button>    
+        </div>    
+        <div class="social-container">    
+            <button class="btn-custom btn-red btn-social" onclick="window.open('https://x.com/OgRats')">@OgRats</button>    
+            <button class="btn-custom btn-blue btn-social" style="background-color:#52be80" onclick="window.open('https://marketplace.roninchain.com/collections/ograts')">GET RAT</button>    
+        </div>    
+    </div>    
+    
+    <div id="settings-screen" class="screen hidden">    
+        <h2 style="color: #fff; font-size: 16px;">PAUSA / AJUSTES</h2>    
+        <div class="setting-row">    
+            <span>CONTROLES:</span>    
+            <select id="select-controls"><option value="JOYSTICK">JOYSTICK</option><option value="ARROWS">FLECHAS</option></select>    
+        </div>    
+        <div class="setting-row">    
+            <span>MÚSICA:</span>    
+            <input type="checkbox" id="check-music" checked>    
+        </div>    
+        <div class="setting-row">    
+            <span>SFX:</span>    
+            <input type="checkbox" id="check-sfx" checked>    
+        </div>    
+        <div class="setting-row">    
+            <span>VOLUMEN:</span>    
+            <input type="range" id="range-vol" min="0" max="1" step="0.1" value="0.5">    
+        </div>    
+        <button class="btn-custom btn-yellow" id="btn-resume" style="margin-top:15px;">RESUME</button>    
+        <button class="btn-custom btn-red" id="btn-quit">QUIT GAME</button>    
+    </div>    
+    
+    <div id="profile-screen" class="screen hidden">    
+        <h2>CONFIGURAR PERFIL</h2>    
+        <img id="avatar-img-view" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'><rect width='48' height='48' fill='%23444'/></svg>" alt="avatar">
+        <input type="file" id="input-profile-file" accept="image/*" style="font-size: 8px; margin-bottom: 10px; width: 200px;">
+        <input type="text" id="input-profile-name" class="profile-input" value="Player1" maxlength="10">    
+        <button class="btn-custom btn-blue" id="btn-profile-save">GUARDAR</button>    
+    </div>    
+
+    <div id="leaderboard-screen" class="screen hidden">
+        <h2>LEADERBOARD MENSUAL</h2>
+        <div style="overflow-y: auto; max-height: 250px; width: 100%; display: flex; justify-content: center;">
+            <table class="leaderboard-table">
+                <thead>
+                    <tr><th>Jugador</th><th>Nivel</th><th>Kills</th><th>Tiempo</th></tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <button class="btn-custom btn-red" id="btn-leaderboard-back">VOLVER</button>
+    </div>
+    
+    <div id="end-screen" class="screen hidden">    
+        <h1 id="end-title">GAME OVER</h1>    
+        <div class="stats-text" id="end-stats"></div>    
+        <div class="button-group" style="display: flex; flex-direction: column; align-items: center;">    
+            <button class="btn-custom btn-yellow hidden" id="btn-next-level">SIGUIENTE NIVEL</button>    
+            <button class="btn-custom btn-blue hidden" id="btn-retry-level">REINTENTAR</button>    
+            <button class="btn-custom btn-blue" id="btn-share-x" style="background-color: #1da1f2;">COMPARTIR EN X</button>    
+            <button class="btn-custom btn-red" id="btn-restart">VOLVER AL MENÚ</button>    
+        </div>    
+    </div>    
+    
+    <canvas id="gameCanvas"></canvas>    
+</div>    
+    
+<script>    
+// --- CONFIGURACIÓN DE SUPABASE ---
+// Reemplaza estos dos valores con los credenciales que obtendrás en el Paso 2
+const SUPABASE_URL = "https://TU_PROYECTO_SUPABASE.supabase.co";
+const SUPABASE_ANON_KEY = "TU_API_KEY_ANONIMA_DE_SUPABASE";
+let supabaseClient = null;
+
+if(SUPABASE_URL.indexOf("TU_PROYECTO") === -1) {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+const canvas = document.getElementById('gameCanvas');    
+const ctx = canvas.getContext('2d');    
+    
+function resizeCanvas() {    
+    const rect = canvas.getBoundingClientRect();    
+    canvas.width = rect.width || 800;    
+    canvas.height = rect.height || 600;    
+    hudButtons.fullscreen.x = canvas.width - 56;    
+    hudButtons.pause.x = canvas.width - 116;    
+}    
+window.addEventListener('resize', resizeCanvas);    
+    
+// --- AUDIO SYSTEM ---    
+const bgMusic = new Audio('assets/musicrat1.mp3');    
+bgMusic.loop = true;    
+bgMusic.volume = 0.4;    
+    
+let musicEnabled = true;    
+let sfxEnabled = true;    
+function startMusic() { if (musicEnabled) bgMusic.play().catch(() => {}); }    
+window.addEventListener('click', startMusic, { once: true });    
+window.addEventListener('touchstart', startMusic, { once: true });    
+    
+function playSFX(src) {    
+    if(!sfxEnabled) return;    
+    const sfx = new Audio(`assets/${src}`);    
+    sfx.volume = bgMusic.volume * 1.2;    
+    sfx.play().catch(() => {});    
+}    
+    
+// --- ASSETS ---    
+const assets = {};    
+const assetNames = [    
+    'suelo_madera.png', 'suelo_hierba.png', 'bordes.png', 'borde_superior.png',     
+    'puerta1.png', 'personaje_rata_azul.png', 'arma_1.png', 'enemigo_rata_gris.png',     
+    'enemigo_rata_blanca.png', 'btn_largo_azul.png', 'btn_largo_rojo.png',     
+    'btn_largo_amarillo.png', 'btn_rojo.png', 'btn_azul.png', 'time.png',    
+    'bullet.png', 'player_dead.png', 'life_pot.png', 'defense_pot.png',     
+    'bullet_box.png', 'vault.png', 'vault_sequence.png', 'coin_sequence.png'    
+];    
+    
+assetNames.forEach(name => {    
+    const img = new Image();    
+    img.src = `assets/${name}`;    
+    img.onload = () => { 
+        if(name.startsWith('btn_largo_')) applyButtonSprite(name);
+        if(name === 'btn_rojo.png') {
+            document.getElementById('btn-menu-corner-fs').style.backgroundImage = `url('assets/btn_rojo.png')`;
+        }
+    };    
+    img.onerror = () => {    
+        const dummy = document.createElement('canvas');    
+        dummy.width = 64; dummy.height = 64;    
+        const dCtx = dummy.getContext('2d');    
+        dCtx.fillRect(0,0,64,64);    
+        assets[name.replace('.png','').replace('1','')] = dummy;    
+    };    
+    let key = name.replace('.png','').replace('1','');    
+    assets[key] = img;    
+});    
+    
+function applyButtonSprite(name) {    
+    let key = name.replace('.png','');    
+    let url = `url('assets/${name}')`;    
+    if(key === 'btn_largo_azul') document.querySelectorAll('.btn-blue').forEach(b => b.style.backgroundImage = url);    
+    else if(key === 'btn_largo_rojo') document.querySelectorAll('.btn-red').forEach(b => b.style.backgroundImage = url);    
+    else if(key === 'btn_largo_amarillo') document.querySelectorAll('.btn-yellow').forEach(b => b.style.backgroundImage = url);    
+}    
+    
+// --- VARIABLES ---    
+let gameState = 'MENU';     
+let currentLevel = 1;    
+let maxUnlockedLevel = parseInt(localStorage.getItem('soulrat_unlocked_level')) || 1;     
+let controlsType = 'JOYSTICK';     
+let profileName = localStorage.getItem('soulrat_username') || "Player1";    
+let profileAvatarB64 = localStorage.getItem('soulrat_avatar') || ""; 
+let previewTimer = 0;    
+let levelTimer = 180;     
+let lastTime = 0;    
+let enemiesDefeated = 0;    
+let lastPlayerShot = 0;    
+let previousState = 'MENU';    
+let levelStartTime = 0; 
+const gameZoom = 0.65;     
+    
+const player = {    
+    x: 0, y: 0, radius: 18,    
+    hp: 100, maxHp: 100, def: 0, bullets: 40, coins: 0,    
+    speed: 170, angle: 0, weaponAngle: 0, dirRow: 0, animFrame: 0, animTime: 0, flipX: false,    
+    isDead: false    
+};    
+    
+const keys = {};    
+let joystick = { active: false, startX: 0, startY: 0, curX: 0, curY: 0, dirX: 0, dirY: 0 };    
+let arrowButtons = {    
+    up: { x: 90, y: 410, w: 44, h: 44 }, down: { x: 90, y: 510, w: 44, h: 44 },    
+    left: { x: 40, y: 460, w: 44, h: 44 }, right: { x: 140, y: 460, w: 44, h: 44 }    
+};    
+let hudButtons = { fullscreen: { x: 0, y: 16, w: 48, h: 44 }, pause: { x: 0, y: 16, w: 48, h: 44 } };    
+    
+let mapGrid = [];    
+let mapWidth = 0;     
+let mapHeight = 0;    
+const tileSize = 64;     
+let camera = { x: 0, y: 0 };    
+let enemies = [];    
+let deadEnemies = [];     
+let bullets = [];    
+let items = [];    
+let floatTexts = [];     
+let animatedVFX = [];    
+
+// Inicializar interfaz de perfil guardado
+document.getElementById('input-profile-name').value = profileName;
+if(profileAvatarB64) document.getElementById('avatar-img-view').src = profileAvatarB64;
+    
+// --- SELECTOR DE NIVEL ---    
+const levelListContainer = document.getElementById('level-list');    
+function updateLevelButtons() {    
+    levelListContainer.innerHTML = '';    
+    for(let i = 1; i <= 50; i++) {    
+        const btn = document.createElement('button');    
+        btn.className = 'level-btn';    
+        if (i <= maxUnlockedLevel) {    
+            btn.innerText = `NIVEL ${i}`;    
+            btn.onclick = (e) => { e.stopPropagation(); startLevel(i); };    
+        } else {    
+            btn.innerText = `🔒`; btn.disabled = true;    
+        }    
+        levelListContainer.appendChild(btn);    
+    }    
+}    
+    
+// --- INTERACCIONES INTERFAZ ---    
+document.getElementById('btn-profile-cfg').addEventListener('click', (e) => {    
+    e.stopPropagation(); document.getElementById('profile-screen').classList.remove('hidden');    
+});    
+
+// Conversión de imagen de perfil subida a Base64 para almacenar fácilmente
+document.getElementById('input-profile-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            profileAvatarB64 = event.target.result;
+            document.getElementById('avatar-img-view').src = profileAvatarB64;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+document.getElementById('btn-profile-save').addEventListener('click', (e) => {    
+    e.stopPropagation(); 
+    profileName = document.getElementById('input-profile-name').value.trim() || "Player1";    
+    localStorage.setItem('soulrat_username', profileName);
+    if(profileAvatarB64) localStorage.setItem('soulrat_avatar', profileAvatarB64);
+    document.getElementById('profile-screen').classList.add('hidden');    
+});    
+
+document.getElementById('btn-main-play').addEventListener('click', (e) => {    
+    e.stopPropagation(); document.getElementById('main-buttons').classList.add('hidden');    
+    document.getElementById('level-area').classList.remove('hidden'); updateLevelButtons();    
+});    
+document.getElementById('btn-level-back').addEventListener('click', (e) => {    
+    e.stopPropagation(); document.getElementById('level-area').classList.add('hidden');    
+    document.getElementById('main-buttons').classList.remove('hidden');    
+});    
+document.getElementById('btn-settings-main').addEventListener('click', (e) => {     
+    e.stopPropagation(); toggleSettings(true);     
+});    
+document.getElementById('btn-menu-corner-fs').addEventListener('click', (e) => {    
+    e.stopPropagation(); toggleFullscreen();    
+});    
+document.getElementById('btn-resume').addEventListener('click', (e) => { e.stopPropagation(); toggleSettings(false); });    
+document.getElementById('btn-restart').addEventListener('click', (e) => {    
+    e.stopPropagation(); document.getElementById('end-screen').classList.add('hidden');    
+    document.getElementById('menu-screen').classList.remove('hidden'); document.getElementById('main-buttons').classList.remove('hidden');    
+    document.getElementById('level-area').classList.add('hidden'); document.getElementById('menu-corner-actions').classList.remove('hidden');    
+    canvas.classList.remove('blur-bg');
+    gameState = 'MENU';    
+});    
+document.getElementById('btn-retry-level').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('end-screen').classList.add('hidden'); startLevel(currentLevel); });    
+document.getElementById('btn-next-level').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('end-screen').classList.add('hidden'); startLevel(currentLevel + 1); });    
+document.getElementById('btn-quit').addEventListener('click', (e) => {     
+    e.stopPropagation(); document.getElementById('settings-screen').classList.add('hidden');    
+    document.getElementById('menu-screen').classList.remove('hidden'); document.getElementById('main-buttons').classList.remove('hidden');    
+    document.getElementById('menu-corner-actions').classList.remove('hidden');    
+    canvas.classList.remove('blur-bg');
+    gameState = 'MENU';    
+});    
+
+// Eventos Leaderboard
+document.getElementById('btn-leaderboard-open').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    document.getElementById('leaderboard-screen').classList.remove('hidden');
+    await fetchLeaderboard();
+});
+document.getElementById('btn-leaderboard-back').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('leaderboard-screen').classList.add('hidden');
+});
+    
+// Manejo de Cambios en Panel Settings    
+document.getElementById('select-controls').addEventListener('change', (e) => { controlsType = e.target.value; });    
+document.getElementById('check-music').addEventListener('change', (e) => { musicEnabled = e.target.checked; if(musicEnabled) startMusic(); else bgMusic.pause(); });    
+document.getElementById('check-sfx').addEventListener('change', (e) => { sfxEnabled = e.target.checked; });    
+document.getElementById('range-vol').addEventListener('input', (e) => { bgMusic.volume = e.target.value; });    
+    
+document.getElementById('btn-share-x').addEventListener('click', () => {    
+    let text = encodeURIComponent(`🎮 ¡He completado el nivel ${currentLevel} en SoulRat! Perfil: ${profileName} | Bajas: ${enemiesDefeated} | Puntuación registrada en Supabase. @OgRats`);    
+    window.open(`https://x.com/intent/tweet?text=${text}`);    
+});    
+    
+function toggleSettings(show) {    
+    if(show) { 
+        document.getElementById('settings-screen').classList.remove('hidden'); 
+        previousState = gameState; gameState = 'SETTINGS'; 
+        canvas.classList.add('blur-bg');
+    }     
+    else { 
+        document.getElementById('settings-screen').classList.add('hidden'); 
+        gameState = previousState; 
+        if(gameState === 'PLAYING') canvas.classList.remove('blur-bg');
+    }    
+}    
+function toggleFullscreen() {    
+    let container = document.getElementById('game-container');    
+    if (!document.fullscreenElement) { container.requestFullscreen().catch(() => {}); } else { document.exitFullscreen(); }    
+}    
+    
+function addFloatingText(x, y, text, color = '#f1c40f') {    
+    floatTexts.push({ x: x, y: y, text: text, color: color, alpha: 1.0, life: 1.2 });    
+}    
+    
+function checkWallCollision(x, y, radius) {    
+    let cellMinX = Math.floor((x - radius) / tileSize);    
+    let cellMaxX = Math.floor((x + radius) / tileSize);    
+    let cellMinY = Math.floor((y - radius) / tileSize);    
+    let cellMaxY = Math.floor((y + radius) / tileSize);    
+    if (cellMinX < 0 || cellMaxX >= mapWidth || cellMinY < 0 || cellMaxY >= mapHeight) return true;    
+    for (let cy = cellMinY; cy <= cellMaxY; cy++) {    
+        for (let cx = cellMinX; cx <= cellMaxX; cx++) {    
+            if (mapGrid[cy][cx] === 'WALL') {    
+                let closestX = Math.max(cx * tileSize, Math.min(x, (cx + 1) * tileSize));    
+                let closestY = Math.max(cy * tileSize, Math.min(y, (cy + 1) * tileSize));    
+                if (Math.hypot(x - closestX, y - closestY) < radius) return true;    
+            }    
+        }    
+    }    
+    return false;    
+}    
+    
+// --- GENERACIÓN MAPA ---    
+function generateMap(level) {    
+    mapWidth = 25 + Math.floor(level * 2);    
+    mapHeight = 25 + Math.floor(level * 2);    
+    if(mapWidth % 3 !== 1) mapWidth += (3 - (mapWidth % 3) + 1);    
+    if(mapHeight % 3 !== 1) mapHeight += (3 - (mapHeight % 3) + 1);    
+    
+    mapGrid = [];    
+    for(let y=0; y<mapHeight; y++) {    
+        mapGrid[y] = [];    
+        for(let x=0; x<mapWidth; x++) mapGrid[y][x] = 'WALL';    
+    }    
+    
+    function excavate(cx, cy) {    
+        for(let y=0; y<2; y++){    
+            for(let x=0; x<2; x++){    
+                if(cy+y < mapHeight-1 && cx+x < mapWidth-1) mapGrid[cy+y][cx+x] = 'FLOOR';    
+            }    
+        }    
+        const dirs = [[0, -3], [0, 3], [-3, 0], [3, 0]].sort(() => Math.random() - 0.5);    
+        for (let [dx, dy] of dirs) {    
+            let nx = cx + dx, ny = cy + dy;    
+            if (nx > 0 && nx < mapWidth - 2 && ny > 0 && ny < mapHeight - 2) {    
+                if (mapGrid[ny][nx] === 'WALL') {    
+                    let wallX = cx + (dx > 0 ? 2 : dx < 0 ? -1 : 0);    
+                    let wallY = cy + (dy > 0 ? 2 : dy < 0 ? -1 : 0);    
+                    if(dx !== 0) {    
+                        if(wallY < mapHeight-1) mapGrid[wallY][wallX] = 'FLOOR';    
+                        if(wallY+1 < mapHeight-1) mapGrid[wallY+1][wallX] = 'FLOOR';    
+                    } else {    
+                        if(wallX < mapWidth-1) mapGrid[wallY][wallX] = 'FLOOR';    
+                        if(wallX+1 < mapWidth-1) mapGrid[wallY][wallX+1] = 'FLOOR';    
+                    }    
+                    excavate(nx, ny);    
+                }    
+            }    
+        }    
+    }    
+    excavate(1, 1);    
+    
+    let pX = Math.floor(mapWidth / 2);    
+    let pY = mapHeight - 3;    
+    for(let y = 0; y < 2; y++) {    
+        for(let x = 0; x < 2; x++) { mapGrid[pY+y][pX+x] = 'FLOOR'; }    
+    }    
+    
+    player.x = pX * tileSize + tileSize;     
+    player.y = pY * tileSize + tileSize;    
+    player.isDead = false;     
+    player.hp = 100;     
+    player.def = 0;     
+    player.bullets = 40;     
+    player.coins = 0;    
+    
+    let validDoorPositions = [];    
+    for(let x = 1; x < mapWidth - 1; x++) { if(mapGrid[1][x] === 'FLOOR') validDoorPositions.push(x); }    
+    let doorX = validDoorPositions.length > 0 ? validDoorPositions[Math.floor(Math.random() * validDoorPositions.length)] : Math.floor(mapWidth/2);    
+    mapGrid[0][doorX] = 'DOOR';    
+    
+    enemies = []; deadEnemies = []; floatTexts = []; animatedVFX = [];    
+    let enemyCount = 18 + Math.floor(level * 3.5);     
+    for(let i=0; i<enemyCount; i++) {    
+        let ex, ey;    
+        do {    
+            ex = Math.floor(Math.random() * (mapWidth - 2)) + 1;    
+            ey = Math.floor(Math.random() * (mapHeight - 2)) + 1;    
+        } while(mapGrid[ey][ex] !== 'FLOOR' || Math.hypot(ex*64 - player.x, ey*64 - player.y) < 250);    
+        
+        let scaleMultiplier = 1 + (level * 0.03); 
+        enemies.push({    
+            x: ex * tileSize + tileSize/2, y: ey * tileSize + tileSize/2, radius: 18 * scaleMultiplier, sizeScale: scaleMultiplier,    
+            type: Math.random() > 0.5 ? 'gris' : 'blanca', speed: 65 + (level * 2), hp: 3 + Math.floor(level * 0.5), hitTimer: 0,    
+            patrolDirX: 1, patrolDirY: 0, changeTimer: 0, lastShot: 0, dirRow: 0, animFrame: 0, animTime: 0, flipX: false    
+        });    
+    }    
+    
+    items = [];    
+    let tileCount = mapWidth * mapHeight;    
+    for(let i=0; i<Math.floor(tileCount * 0.04); i++) {    
+        let ix, iy;    
+        do {    
+            ix = Math.floor(Math.random() * (mapWidth - 2)) + 1;    
+            iy = Math.floor(Math.random() * (mapHeight - 2)) + 1;    
+        } while(mapGrid[iy][ix] !== 'FLOOR');    
+        
+        let rand = Math.random();    
+        let type = 'coin_sequence';    
+        if(rand > 0.94) type = 'vault'; 
+        else if(rand > 0.91) type = ['life_pot', 'defense_pot', 'bullet_box'][Math.floor(Math.random()*3)];    
+        
+        items.push({ x: ix * tileSize + tileSize/2, y: iy * tileSize + tileSize/2, type: type, floatOffset: Math.random()*5, collected: false });    
+    }    
+}    
+    
+function startLevel(level) {    
+    currentLevel = level; enemiesDefeated = 0; generateMap(level);    
+    previewTimer = 4;     
+    levelTimer = 180 + (level * 5); 
+    bullets = []; resizeCanvas();     
+    gameState = 'PREVIEW';    
+    levelStartTime = Date.now();
+    document.getElementById('menu-screen').classList.add('hidden');    
+    document.getElementById('menu-corner-actions').classList.add('hidden');    
+    document.getElementById('btn-next-level').classList.add('hidden');     
+    document.getElementById('btn-retry-level').classList.add('hidden');    
+    canvas.classList.remove('blur-bg');
+    startMusic();    
+}    
+    
+async function triggerEndGame(victory) {    
+    gameState = 'GAMEOVER'; 
+    canvas.classList.add('blur-bg');
+    document.getElementById('end-screen').classList.remove('hidden');    
+    
+    let timeTaken = Math.floor((Date.now() - levelStartTime) / 1000);
+
+    if (victory) {    
+        document.getElementById('end-title').innerText = "¡VICTORIA!"; document.getElementById('end-title').style.color = "#2ecc71";    
+        if (currentLevel === maxUnlockedLevel && maxUnlockedLevel < 50) { maxUnlockedLevel++; localStorage.setItem('soulrat_unlocked_level', maxUnlockedLevel); }    
+        if(currentLevel < 50) document.getElementById('btn-next-level').classList.remove('hidden');    
+        
+        // Enviar datos de la corrida a Supabase si está configurado
+        await saveRunToSupabase(timeTaken);
+    } else {    
+        document.getElementById('end-title').innerText = "GAME OVER"; document.getElementById('end-title').style.color = "#e74c3c";    
+        document.getElementById('btn-retry-level').classList.remove('hidden');    
+    }    
+    document.getElementById('end-stats').innerHTML = `LABERINTO: ${currentLevel}<br>PERFIL: ${profileName}<br>RATAS ELIMINADAS: ${enemiesDefeated}<br>TIEMPO: ${timeTaken}s`;    
+}    
+    
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.key === 'Escape') toggleSettings(gameState !== 'SETTINGS'); });    
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);    
+    
+function getCanvasPointer(e) {    
+    const rect = canvas.getBoundingClientRect();    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;    
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;    
+    return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };    
+}    
+    
+canvas.addEventListener('mousedown', e => handleStart(getCanvasPointer(e)));    
+canvas.addEventListener('mousemove', e => handleMove(getCanvasPointer(e)));    
+window.addEventListener('mouseup', handleEnd);    
+canvas.addEventListener('touchstart', e => { handleStart(getCanvasPointer(e)); e.preventDefault(); }, {passive:false});    
+canvas.addEventListener('touchmove', e => { handleMove(getCanvasPointer(e)); e.preventDefault(); }, {passive:false});    
+window.addEventListener('touchend', handleEnd);    
+    
+function handleStart(pos) {    
+    if (gameState === 'PLAYING') {    
+        if (pos.x >= hudButtons.fullscreen.x && pos.x <= hudButtons.fullscreen.x + hudButtons.fullscreen.w && pos.y >= hudButtons.fullscreen.y && pos.y <= hudButtons.fullscreen.y + hudButtons.fullscreen.h) { toggleFullscreen(); return; }    
+        if (pos.x >= hudButtons.pause.x && pos.x <= hudButtons.pause.x + hudButtons.pause.w && pos.y >= hudButtons.pause.y && pos.y <= hudButtons.pause.y + hudButtons.pause.h) { toggleSettings(true); return; }    
+    }    
+    if(gameState !== 'PLAYING') return;    
+    if(controlsType === 'JOYSTICK' && pos.x < canvas.width / 2) {    
+        joystick.active = true; joystick.startX = pos.x; joystick.startY = pos.y; joystick.curX = pos.x; joystick.curY = pos.y;    
+    } else if (controlsType === 'ARROWS') {    
+        if (pos.x >= arrowButtons.up.x && pos.x <= arrowButtons.up.x + arrowButtons.up.w && pos.y >= arrowButtons.up.y && pos.y <= arrowButtons.up.y + arrowButtons.up.h) keys['w'] = true;    
+        if (pos.x >= arrowButtons.down.x && pos.x <= arrowButtons.down.x + arrowButtons.down.w && pos.y >= arrowButtons.down.y && pos.y <= arrowButtons.down.y + arrowButtons.down.h) keys['s'] = true;    
+        if (pos.x >= arrowButtons.left.x && pos.x <= arrowButtons.left.x + arrowButtons.left.w && pos.y >= arrowButtons.left.y && pos.y <= arrowButtons.left.y + arrowButtons.left.h) keys['a'] = true;    
+        if (pos.x >= arrowButtons.right.x && pos.x <= arrowButtons.right.x + arrowButtons.right.w && pos.y >= arrowButtons.right.y && pos.y <= arrowButtons.right.y + arrowButtons.right.h) keys['d'] = true;    
+    }    
+}    
+function handleMove(pos) { if(joystick.active) { joystick.curX = pos.x; joystick.curY = pos.y; let dx = joystick.curX - joystick.startX, dy = joystick.curY - joystick.startY; let dist = Math.hypot(dx, dy); if(dist > 0) { joystick.dirX = dx / dist; joystick.dirY = dy / dist; } } }    
+function handleEnd() { joystick.active = false; joystick.dirX = joystick.dirY = 0; keys['w'] = keys['s'] = keys['a'] = keys['d'] = false; }    
+    
+function fireBullet(entity, isPlayer, targetAngle = null) {    
+    const now = Date.now();    
+    if(isPlayer) {    
+        if(now - lastPlayerShot < 300 || player.bullets <= 0 || player.isDead) return;    
+        lastPlayerShot = now; player.bullets--;    
+        playSFX('shoot.mp3');    
+    } else {    
+        if(now - entity.lastShot < 1000) return;    
+        entity.lastShot = now;    
+    }    
+    let angle = isPlayer ? (targetAngle !== null ? targetAngle : player.weaponAngle) : Math.atan2(player.y - entity.y, player.x - entity.x);    
+    bullets.push({ x: entity.x, y: entity.y, vx: Math.cos(angle) * 440, vy: Math.sin(angle) * 440, angle: angle, isPlayer: isPlayer });    
+}    
+    
+function hasLineOfSight(enemy) {    
+    let dx = player.x - enemy.x, dy = player.y - enemy.y, dist = Math.hypot(dx, dy);    
+    if(dist > 7 * tileSize) return false;    
+    let steps = Math.ceil(dist / 16);    
+    for(let i = 1; i < steps; i++) {    
+        let cx = enemy.x + (dx * i / steps), cy = enemy.y + (dy * i / steps);    
+        if(mapGrid[Math.floor(cy/tileSize)]?.[Math.floor(cx/tileSize)] === 'WALL') return false;    
+    }    
+    return true;    
+}    
+    
+// --- UPDATE ---    
+function update(dt) {    
+    if(gameState === 'PREVIEW') { previewTimer -= dt; if(previewTimer <= 0) gameState = 'PLAYING'; return; }    
+    if(gameState !== 'PLAYING') return;    
+    
+    levelTimer -= dt; if(levelTimer <= 0) { levelTimer = 0; triggerEndGame(false); return; }    
+    
+    for (let i = animatedVFX.length - 1; i >= 0; i--) {    
+        let vfx = animatedVFX[i]; vfx.time += dt;    
+        if(vfx.time >= 0.12) { vfx.frame++; vfx.time = 0; }    
+        if(vfx.frame >= vfx.maxFrames) animatedVFX.splice(i, 1);    
+    }    
+    
+    for(let i = floatTexts.length - 1; i >= 0; i--) {    
+        floatTexts[i].y -= dt * 35; floatTexts[i].life -= dt;    
+        floatTexts[i].alpha = Math.max(0, floatTexts[i].life);    
+        if(floatTexts[i].life <= 0) floatTexts.splice(i, 1);    
+    }    
+    
+    for(let i = deadEnemies.length - 1; i >= 0; i--) {    
+        deadEnemies[i].alpha -= dt * 0.5;    
+        if(deadEnemies[i].alpha <= 0) deadEnemies.splice(i, 1);    
+    }    
+    
+    if(!player.isDead) {    
+        let mx = 0, my = 0;    
+        if(controlsType === 'ARROWS') {    
+            if (keys['arrowup'] || keys['w']) my = -1; if (keys['arrowdown'] || keys['s']) my = 1;    
+            if (keys['arrowleft'] || keys['a']) mx = -1; if (keys['arrowright'] || keys['d']) mx = 1;    
+        } else if(joystick.active) { mx = joystick.dirX; my = joystick.dirY; }    
+    
+        if(mx !== 0 || my !== 0) {    
+            let nX = player.x + mx * player.speed * dt;    
+            let nY = player.y + my * player.speed * dt;    
+    
+            if(Math.abs(mx) > Math.abs(my)) { player.dirRow = 1; player.flipX = mx < 0; }     
+            else { player.dirRow = my > 0 ? 2 : 3; player.flipX = false; }    
+    
+            if(!checkWallCollision(nX, player.y, player.radius)) player.x = nX;    
+            if(!checkWallCollision(player.x, nY, player.radius)) player.y = nY;    
+    
+            player.animTime += dt; if(player.animTime > 0.12) { player.animFrame = (player.animFrame + 1) % 3; player.animTime = 0; }    
+            if(mapGrid[Math.floor(player.y/tileSize)]?.[Math.floor(player.x/tileSize)] === 'DOOR') { triggerEndGame(true); return; }    
+        } else {    
+            player.dirRow = 0;    
+            player.animTime += dt; if(player.animTime > 0.2) { player.animFrame = (player.animFrame + 1) % 3; player.animTime = 0; }    
+        }    
+    
+        let target = null, minDist = 350;    
+        enemies.forEach(e => { let d = Math.hypot(e.x - player.x, e.y - player.y); if(d < minDist && hasLineOfSight(e)) { minDist = d; target = e; } });    
+        if(target) {    
+            player.weaponAngle = Math.atan2(target.y - player.y, target.x - player.x);    
+            fireBullet(player, true, player.weaponAngle);    
+        }    
+    }    
+    
+    // Balas y mitigación de daños solicitada (50% menos daño de enemigos)   
+    for(let i = bullets.length - 1; i >= 0; i--) {    
+        let b = bullets[i]; b.x += b.vx * dt; b.y += b.vy * dt;    
+        if(mapGrid[Math.floor(b.y/tileSize)]?.[Math.floor(b.x/tileSize)] === 'WALL') { bullets.splice(i, 1); continue; }    
+    
+        if(b.isPlayer) {    
+            for(let j = enemies.length - 1; j >= 0; j--) {    
+                let e = enemies[j];    
+                if(Math.hypot(b.x - e.x, b.y - e.y) < e.radius + 8) {    
+                    bullets.splice(i, 1); e.hp--; e.hitTimer = 0.15;    
+                    if(e.hp <= 0) {    
+                        deadEnemies.push({ x: e.x, y: e.y, alpha: 1.0, scale: e.sizeScale });    
+                        enemies.splice(j, 1); enemiesDefeated++;     
+                    } else {    
+                        addFloatingText(e.x, e.y - 20, "-1 HP", "#f1c40f");    
+                    }    
+                    break;    
+                }    
+            }    
+        } else if(!player.isDead && Math.hypot(b.x - player.x, b.y - player.y) < player.radius + 6) {    
+            bullets.splice(i, 1);    
+            if(player.def > 0) { 
+                player.def = Math.max(0, player.def - 7); // Daño base reducido a la mitad en escudo
+                addFloatingText(player.x, player.y - 20, "-7 DEF", "#5dade2"); 
+            }     
+            else { 
+                player.hp -= 6; // Daño base al jugador reducido de 12 a 6 (50% menos daño)
+                addFloatingText(player.x, player.y - 20, "-6 HP", "#e74c3c"); 
+                if(player.hp <= 0) { player.hp = 0; player.isDead = true; setTimeout(() => triggerEndGame(false), 1200); } 
+            }    
+        }    
+    }    
+    
+    enemies.forEach(e => {    
+        if(e.hitTimer > 0) e.hitTimer -= dt;    
+        if(hasLineOfSight(e)) {     
+            fireBullet(e, false);     
+            let edx = player.x - e.x; let edy = player.y - e.y;    
+            if(Math.abs(edx) > Math.abs(edy)) { e.dirRow = 1; e.flipX = edx < 0; }     
+            else { e.dirRow = edy > 0 ? 2 : 3; e.flipX = false; }    
+            e.animTime += dt; if(e.animTime > 0.15) { e.animFrame = (e.animFrame + 1) % 3; e.animTime = 0; }    
+        } else {    
+            e.changeTimer -= dt;    
+            if(e.changeTimer <= 0) {    
+                let r = Math.random();    
+                if(r < 0.25) { e.patrolDirX = 1; e.patrolDirY = 0; e.dirRow = 1; e.flipX = false; }     
+                else if(r < 0.5) { e.patrolDirX = -1; e.patrolDirY = 0; e.dirRow = 1; e.flipX = true; }    
+                else if(r < 0.75) { e.patrolDirX = 0; e.patrolDirY = 1; e.dirRow = 2; e.flipX = false; }     
+                else { e.patrolDirX = 0; e.patrolDirY = -1; e.dirRow = 3; e.flipX = false; }    
+                e.changeTimer = Math.random() * 1.5 + 0.5;    
+            }    
+            let nX = e.x + e.patrolDirX * e.speed * dt;    
+            let nY = e.y + e.patrolDirY * e.speed * dt;    
+            if(!checkWallCollision(nX, nY, e.radius)) {     
+                e.x = nX; e.y = nY;     
+                e.animTime += dt; if(e.animTime > 0.15) { e.animFrame = (e.animFrame + 1) % 3; e.animTime = 0; }    
+            } else { e.changeTimer = 0; e.dirRow = 0; }    
+        }    
+    });    
+    
+    for(let i = items.length - 1; i >= 0; i--) {    
+        let it = items[i]; it.floatOffset += dt * 3;    
+        if(!player.isDead && Math.hypot(player.x - it.x, player.y - it.y) < player.radius + 16) {    
+            playSFX('pickup.mp3');    
+            
+            if(it.type === 'vault') {    
+                animatedVFX.push({ x: it.x, y: it.y, frame: 0, maxFrames: 3, time: 0 });    
+                let drop = Math.random();    
+                if (drop < 0.35) { player.hp = Math.min(player.maxHp, player.hp + 50); addFloatingText(it.x, it.y, "VAULT: +50 HP", "#2ecc71"); }    
+                else if (drop < 0.70) { player.def = Math.min(100, player.def + 50); addFloatingText(it.x, it.y, "VAULT: +50 DEF", "#3498db"); }    
+                else { player.bullets += 25; addFloatingText(it.x, it.y, "VAULT: +25 AMMO", "#f1c40f"); }    
+            }    
+            else if(it.type === 'life_pot') { player.hp = Math.min(player.maxHp, player.hp + 40); addFloatingText(it.x, it.y, "+40 HP", "#2ecc71"); }    
+            else if(it.type === 'defense_pot') { player.def = Math.min(100, player.def + 30); addFloatingText(it.x, it.y, "+30 ESCUDO", "#3498db"); }    
+            else if(it.type === 'bullet_box') { player.bullets += 15; addFloatingText(it.x, it.y, "+15 BALAS", "#f1c40f"); }    
+            else if(it.type === 'coin_sequence') {     
+                player.coins++;     
+                addFloatingText(it.x, it.y, "+1 MONEDA", "#f39c12");     
+                if(player.coins >= 20) {    
+                    player.coins = 0;    
+                    player.bullets += 15;    
+                    addFloatingText(player.x, player.y - 40, "+15 BALAS (BONO 20 MONEDAS)", "#2ecc71");    
+                }    
+            }    
+            items.splice(i, 1);    
+        }    
+    }    
+    
+    camera.x = player.x - (canvas.width / 2) / gameZoom;    
+    camera.y = player.y - (canvas.height / 2) / gameZoom;    
+}    
+    
+// --- RENDER ---    
+function draw() {    
+    ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);    
+    ctx.imageSmoothingEnabled = false;    
+    if (mapGrid.length === 0) return;    
+    
+    ctx.save();    
+    if(gameState === 'PREVIEW') {    
+        let totalMapW = mapWidth * tileSize, totalMapH = mapHeight * tileSize;    
+        let scaleX = canvas.width / totalMapW, scaleY = canvas.height / totalMapH;    
+        let previewZoom = Math.min(scaleX, scaleY) * 0.98;    
+        ctx.scale(previewZoom, previewZoom);    
+        ctx.translate((canvas.width/previewZoom - totalMapW)/2, (canvas.height/previewZoom - totalMapH)/2);    
+    } else {    
+        ctx.scale(gameZoom, gameZoom); ctx.translate(-camera.x, -camera.y);    
+    }    
+    
+    for(let y = 0; y < mapHeight; y++) {    
+        for(let x = 0; x < mapWidth; x++) {    
+            let sueloImg = currentLevel % 2 === 0 ? assets['suelo_madera'] : assets['suelo_hierba'];    
+            if(sueloImg) ctx.drawImage(sueloImg, x * tileSize, y * tileSize, tileSize + 1, tileSize + 1);    
+    
+            let tile = mapGrid[y][x];    
+            if(tile === 'WALL') {    
+                let wallImg = (y === 0) ? assets['borde_superior'] : assets['bordes'];    
+                if(wallImg) ctx.drawImage(wallImg, x * tileSize, y * tileSize, tileSize + 1, tileSize + 1);    
+            } else if(tile === 'DOOR') {    
+                if(assets['puerta']) ctx.drawImage(assets['puerta'], x * tileSize, y * tileSize, tileSize, tileSize);    
+            }    
+        }    
+    }    
+    
+    deadEnemies.forEach(de => {    
+        if(assets['player_dead']) {    
+            ctx.save(); ctx.globalAlpha = de.alpha;    
+            let s = de.scale || 1;    
+            ctx.drawImage(assets['player_dead'], de.x - 24 * s, de.y - 24 * s, 48 * s, 48 * s);    
+            ctx.restore();    
+        }    
+    });    
+    
+    items.forEach(it => {    
+        let bounce = Math.sin(it.floatOffset) * 4;    
+        let img = assets[it.type];    
+        if(img) {    
+            if(it.type === 'coin_sequence') {    
+                ctx.drawImage(img, 0, 0, 32, 32, it.x - 16, it.y - 16 + bounce, 32, 32);    
+            } else if(it.type === 'vault') {    
+                ctx.drawImage(img, it.x - 20, it.y - 16 + bounce, 40, 32);    
+            } else {    
+                ctx.drawImage(img, it.x - 16, it.y - 16 + bounce, 32, 32);    
+            }    
+        }    
+    });    
+    
+    animatedVFX.forEach(vfx => {    
+        if(assets['vault_sequence']) {    
+            ctx.drawImage(assets['vault_sequence'], vfx.frame * 32, 0, 32, 32, vfx.x - 20, vfx.y - 16, 40, 32);    
+        }    
+    });    
+    
+    enemies.forEach(e => {    
+        let img = e.type === 'gris' ? assets['enemigo_rata_gris'] : assets['enemigo_rata_blanca'];    
+        if(img) {    
+            ctx.save();    
+            if(e.hitTimer > 0) ctx.filter = "brightness(2) sepia(1) hue-rotate(-50deg)";    
+            ctx.translate(e.x, e.y);    
+            if(e.flipX) ctx.scale(-1, 1);    
+            let s = e.sizeScale || 1;    
+            ctx.drawImage(img, e.animFrame * 64, e.dirRow * 64, 64, 64, -24 * s, -24 * s, 48 * s, 48 * s);    
+            if(assets['arma_']) {    
+                ctx.drawImage(assets['arma_'], e.animFrame * 64, e.dirRow * 64, 64, 64, -24 * s, -24 * s, 48 * s, 48 * s);    
+            }    
+            ctx.restore();    
+        }    
+    });    
+    
+    bullets.forEach(b => {     
+        if(assets['bullet']) {    
+            ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.angle);    
+            ctx.drawImage(assets['bullet'], -6, -6, 12, 12);     
+            ctx.restore();    
+        }    
+    });    
+    
+    if(!player.isDead) {    
+        if(assets['personaje_rata_azul']) {    
+            ctx.save();    
+            ctx.translate(player.x, player.y);    
+            if(player.flipX) ctx.scale(-1, 1);    
+            ctx.drawImage(assets['personaje_rata_azul'], player.animFrame * 64, player.dirRow * 64, 64, 64, -24, -24, 48, 48);    
+            if(assets['arma_']) {    
+                ctx.drawImage(assets['arma_'], player.animFrame * 64, player.dirRow * 64, 64, 64, -24, -24, 48, 48);    
+            }    
+            ctx.restore();    
+        }    
+    } else if (player.isDead && assets['player_dead']) {    
+        ctx.drawImage(assets['player_dead'], player.x - 24, player.y - 24, 48, 48);    
+    }    
+    
+    floatTexts.forEach(ft => {    
+        ctx.save(); ctx.globalAlpha = ft.alpha; ctx.fillStyle = ft.color;    
+        ctx.font = '7px "Press Start 2P"'; ctx.textAlign = 'center';    
+        ctx.fillText(ft.text, ft.x, ft.y); ctx.restore();    
+    });    
+    
+    ctx.restore();    
+    
+    // HUD Fijo
+    if(gameState === 'PREVIEW') {    
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, canvas.width, canvas.height);    
+        ctx.fillStyle = '#fff'; ctx.font = '10px "Press Start 2P"'; ctx.textAlign = 'center';    
+        ctx.fillText(`LABERINTO EQUILIBRADO - NIVEL ${currentLevel}`, canvas.width/2, 40);    
+        ctx.fillStyle = '#f1c40f'; ctx.font = '20px "Press Start 2P"'; ctx.fillText(Math.ceil(previewTimer), canvas.width/2, 80);    
+    }    
+    
+    if(gameState === 'PLAYING') {    
+        ctx.fillStyle = '#222'; ctx.fillRect(20, 20, 160, 14);    
+        ctx.fillStyle = '#e74c3c'; ctx.fillRect(20, 20, player.hp * 1.6, 14);    
+        ctx.fillStyle = '#3498db'; ctx.fillRect(20, 38, player.def * 1.6, 8);    
+            
+        ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P"'; ctx.textAlign = 'left';    
+        ctx.fillText(`HP: ${player.hp}`, 24, 31);    
+        ctx.fillText(`AMMO: ${player.bullets}`, 20, 60);    
+        ctx.fillText(`COINS: ${player.coins}/20`, 20, 76);    
+        ctx.fillStyle = '#5dade2'; ctx.fillText(`KILLS: ${enemiesDefeated}`, 20, 92);     
+    
+        if(assets['time']) ctx.drawImage(assets['time'], canvas.width / 2 - 45, 18, 16, 16);    
+        let minutes = Math.floor(levelTimer / 60);    
+        let seconds = Math.floor(levelTimer % 60).toString().padStart(2, '0');    
+        ctx.fillStyle = levelTimer < 30 ? '#e74c3c' : '#fff';    
+        ctx.font = '10px "Press Start 2P"';    
+        ctx.fillText(`${minutes}:${seconds}`, canvas.width / 2 - 20, 31);    
+    
+        if(assets['btn_azul']) ctx.drawImage(assets['btn_azul'], hudButtons.pause.x, hudButtons.pause.y, hudButtons.pause.w, hudButtons.pause.h);    
+        if(assets['btn_rojo']) ctx.drawImage(assets['btn_rojo'], hudButtons.fullscreen.x, hudButtons.fullscreen.y, hudButtons.fullscreen.w, hudButtons.fullscreen.h);    
+            
+        ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P"'; ctx.textAlign = 'center';    
+        ctx.fillText("||", hudButtons.pause.x + 24, hudButtons.pause.y + 26);    
+        ctx.fillText("FS", hudButtons.fullscreen.x + 24, hudButtons.fullscreen.y + 26);    
+    
+        if(controlsType === 'ARROWS') {    
+            Object.keys(arrowButtons).forEach(dir => {    
+                let b = arrowButtons[dir]; ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(b.x, b.y, b.w, b.h);    
+                ctx.fillStyle = '#fff'; ctx.font = '10px "Press Start 2P"';    
+                let label = dir==='up'?'W': dir==='down'?'S': dir==='left'?'A':'D';    
+                ctx.fillText(label, b.x + 22, b.y + 26);    
+            });    
+        } else if(controlsType === 'JOYSTICK') {    
+            let jx = 100, jy = canvas.height - 100;    
+            ctx.beginPath(); ctx.arc(jx, jy, 45, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();    
+            let stickX = jx + (joystick.active ? joystick.dirX * 22 : 0);    
+            let stickY = jy + (joystick.active ? joystick.dirY * 22 : 0);    
+            ctx.beginPath(); ctx.arc(stickX, stickY, 18, 0, Math.PI*2); ctx.fillStyle = 'rgba(52, 152, 219, 0.4)'; ctx.fill();    
+        }    
+    }    
+}    
+
+// --- ACCIONES SUPABASE (GUARDADO Y RESET MENSUAL SIMULADO DE FORMA EFICIENTE) ---
+async function saveRunToSupabase(timeTaken) {
+    if(!supabaseClient) return;
+    try {
+        await supabaseClient.from('leaderboard').insert([{
+            username: profileName,
+            level: currentLevel,
+            kills: enemiesDefeated,
+            time_spent: timeTaken,
+            avatar_url: profileAvatarB64 || null
+        }]);
+    } catch (err) { console.error("Error guardando corrida:", err); }
+}
+
+async function fetchLeaderboard() {
+    const tbody = document.getElementById('leaderboard-body');
+    if(!supabaseClient) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Supabase sin configurar</td></tr>`;
+        return;
+    }
+    try {
+        // Obtenemos el inicio del mes actual para aplicar el Reset Mensual dinámico directamente desde la consulta
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+        let { data, error } = await supabaseClient
+            .from('leaderboard')
+            .select('*')
+            .gte('created_at', startOfMonth) // Filtra registros solo de este mes
+            .order('level', { ascending: false })
+            .order('time_spent', { ascending: true })
+            .limit(10);
+
+        if (error) throw error;
+
+        tbody.innerHTML = "";
+        if(data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Sin records este mes</td></tr>`;
+            return;
+        }
+
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            const avatarHtml = row.avatar_url ? `<img class='leaderboard-avatar' src='${row.avatar_url}' />` : `<span style='margin-right:4px;'>🐭</span>`;
+            tr.innerHTML = `
+                <td>${avatarHtml}${escapeHTML(row.username)}</td>
+                <td>${row.level}</td>
+                <td>${row.kills}</td>
+                <td>${row.time_spent}s</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Error de conexión</td></tr>`;
+    }
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}
+    
+function loop(timestamp) {    
+    let dt = (timestamp - lastTime) / 1000; if(dt > 0.1) dt = 0.1;    
+    lastTime = timestamp; update(dt); draw(); requestAnimationFrame(loop);    
+}    
+    
+resizeCanvas();    
+requestAnimationFrame(loop);    
+</script>    
+</body>    
+</html>
