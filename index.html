@@ -1051,17 +1051,67 @@ function draw() {
 async function saveRunToSupabase(timeTaken) {
     if(!supabaseClient) return;
     try {
-        await supabaseClient.from('leaderboard').insert([{
-            username: profileName,
-            level: currentLevel,
-            kills: enemiesDefeated,
-            time_spent: timeTaken,
-            avatar_url: profileAvatarB64 || null,
-            social_x: profileX || null,
-            social_discord: profileDiscord || null,
-            wallet: profileWallet || null
-        }]);
-    } catch (err) { console.error("Error guardando corrida:", err); }
+        // 1. Buscamos si este jugador ya tiene algún registro previo
+        let { data: existingRuns, error: fetchError } = await supabaseClient
+            .from('leaderboard')
+            .select('id, level, time_spent')
+            .eq('username', profileName);
+
+        if (fetchError) throw fetchError;
+
+        // Si ya tiene registros, evaluamos si esta nueva partida es mejor
+        if (existingRuns && existingRuns.length > 0) {
+            existingRuns.sort((a, b) => b.level - a.level || a.time_spent - b.time_spent);
+            const bestRun = existingRuns[0];
+
+            // Condición para actualizar: Mayor nivel, o mismo nivel con menor tiempo
+            const superoRecord = (currentLevel > bestRun.level) || 
+                                 (currentLevel === bestRun.level && timeTaken < bestRun.time_spent);
+
+            if (superoRecord) {
+                // Actualizamos su récord existente en lugar de crear otra fila
+                const { error: updateError } = await supabaseClient
+                    .from('leaderboard')
+                    .update({
+                        level: currentLevel,
+                        kills: enemiesDefeated,
+                        time_spent: timeTaken,
+                        avatar_url: profileAvatarB64 || null,
+                        social_x: profileX || null,
+                        social_discord: profileDiscord || null,
+                        wallet: profileWallet || null,
+                        created_at: new Date().toISOString() // Actualizamos fecha para que cuente en el mes actual
+                    })
+                    .eq('id', bestRun.id);
+
+                if (updateError) throw updateError;
+                console.log("¡Récord actualizado con éxito!");
+            } else {
+                console.log("Partida completada, pero no superó el récord anterior.");
+            }
+
+        } else {
+            // 2. Si es la primera vez que juega este usuario, insertamos una fila nueva
+            const { error: insertError } = await supabaseClient
+                .from('leaderboard')
+                .insert([{
+                    username: profileName,
+                    level: currentLevel,
+                    kills: enemiesDefeated,
+                    time_spent: timeTaken,
+                    avatar_url: profileAvatarB64 || null,
+                    social_x: profileX || null,
+                    social_discord: profileDiscord || null,
+                    wallet: profileWallet || null
+                }]);
+
+            if (insertError) throw insertError;
+            console.log("Primer registro del jugador creado con éxito.");
+        }
+
+    } catch (err) { 
+        console.error("Error al procesar la actividad en Supabase:", err); 
+    }
 }
 
 async function fetchLeaderboard() {
@@ -1119,9 +1169,10 @@ async function fetchLeaderboard() {
             tbody.appendChild(tr);
         });
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Error de conexión</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Error d conexión</td></tr>`;
     }
 }
+    
 
 // Cuenta regresiva dinámica al final del mes
 function updateCountdownText() {
