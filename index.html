@@ -1108,9 +1108,74 @@ async function saveRunToSupabase(timeTaken) {
             if (insertError) throw insertError;
             console.log("Primer registro del jugador creado con éxito.");
         }
+// --- ACCIONES SUPABASE ACTUALIZADAS ---
+async function saveRunToSupabase(timeTaken) {
+    if(!supabaseClient) return;
+    try {
+        console.log(`[SoulRat] Procesando partida de ${profileName}. Nivel: ${currentLevel}, Tiempo: ${timeTaken}s`);
+
+        // 1. Consultamos el récord histórico actual de este jugador de forma limpia
+        let { data: records, error: fetchError } = await supabaseClient
+            .from('leaderboard')
+            .select('id, level, time_spent')
+            .eq('username', profileName);
+
+        if (fetchError) throw fetchError;
+
+        // Si ya tiene un récord en la base de datos, comprobamos si el nuevo lo supera
+        if (records && records.length > 0) {
+            // Ordenamos correctamente: mayor nivel primero; a igual nivel, menor tiempo primero
+            records.sort((a, b) => b.level - a.level || a.time_spent - b.time_spent);
+            const miMejorRecord = records[0];
+
+            const superaNivel = currentLevel > miMejorRecord.level;
+            const mismoNivelMasRapido = (currentLevel === miMejorRecord.level && timeTaken < miMejorRecord.time_spent);
+
+            if (!superaNivel && !mismoNivelMasRapido) {
+                console.log(`[SoulRat] Partida ignorada. Tu récord actual (${miMejorRecord.level}º en ${miMejorRecord.time_spent}s) es mejor o igual que este intento.`);
+                return; // Cortamos la ejecución aquí, no hace falta tocar la base de datos
+            }
+            
+            console.log(`[SoulRat] ¡Nuevo récord detectado! Superas tu marca anterior de Nivel ${miMejorRecord.level}.`);
+        }
+
+        // 2. Preparamos el objeto con los datos a guardar (incluye redes si las añadiste a Supabase)
+        const datosPartida = {
+            username: profileName,
+            level: currentLevel,
+            kills: enemiesDefeated,
+            time_spent: timeTaken,
+            avatar_url: profileAvatarB64 || null,
+            created_at: new Date().toISOString() // Actualiza la fecha para los reinicios
+        };
+
+        // Si las columnas de redes existen en tu Supabase, se envían automáticamente
+        if (profileX) datosPartida.social_x = profileX;
+        if (profileDiscord) datosPartida.social_discord = profileDiscord;
+        if (profileWallet) datosPartida.wallet = profileWallet;
+
+        // 3. Guardamos en la base de datos
+        if (records && records.length > 0) {
+            // Si ya existía, actualizamos su ID exacto para no duplicar filas
+            const { error: updateError } = await supabaseClient
+                .from('leaderboard')
+                .update(datosPartida)
+                .eq('id', records[0].id);
+                
+            if (updateError) throw updateError;
+            console.log("[SoulRat] El récord existente ha sido actualizado con éxito en la tabla.");
+        } else {
+            // Si es un jugador completamente nuevo, insertamos normal
+            const { error: insertError } = await supabaseClient
+                .from('leaderboard')
+                .insert([datosPartida]);
+                
+            if (insertError) throw insertError;
+            console.log("[SoulRat] Nuevo jugador registrado con éxito.");
+        }
 
     } catch (err) { 
-        console.error("Error al procesar la actividad en Supabase:", err); 
+        console.error("[SoulRat] Error crítico al guardar en Supabase:", err); 
     }
 }
 
@@ -1172,6 +1237,7 @@ async function fetchLeaderboard() {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Error d conexión</td></tr>`;
     }
 }
+
     
 
 // Cuenta regresiva dinámica al final del mes
