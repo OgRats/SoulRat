@@ -1113,72 +1113,128 @@ async function saveRunToSupabase(timeTaken) {
 async function saveRunToSupabase(timeTaken) {
     if(!supabaseClient) return;
     try {
-        console.log(`[SoulRat] Procesando partida de ${profileName}. Nivel: ${currentLevel}, Tiempo: ${timeTaken}s`);
-
-        // 1. Consultamos el récord histórico actual de este jugador de forma limpia
-        let { data: records, error: fetchError } = await supabaseClient
+        // 1. Buscamos si este jugador ya tiene algún registro previo
+        let { data: existingRuns, error: fetchError } = await supabaseClient
             .from('leaderboard')
             .select('id, level, time_spent')
             .eq('username', profileName);
 
         if (fetchError) throw fetchError;
 
-        // Si ya tiene un récord en la base de datos, comprobamos si el nuevo lo supera
-        if (records && records.length > 0) {
-            // Ordenamos correctamente: mayor nivel primero; a igual nivel, menor tiempo primero
-            records.sort((a, b) => b.level - a.level || a.time_spent - b.time_spent);
-            const miMejorRecord = records[0];
+        // Si ya tiene registros, evaluamos si esta nueva partida es mejor
+        if (existingRuns && existingRuns.length > 0) {
+            existingRuns.sort((a, b) => b.level - a.level || a.time_spent - b.time_spent);
+            const bestRun = existingRuns[0];
 
-            const superaNivel = currentLevel > miMejorRecord.level;
-            const mismoNivelMasRapido = (currentLevel === miMejorRecord.level && timeTaken < miMejorRecord.time_spent);
+            // Condición para actualizar: Mayor nivel, o mismo nivel con menor tiempo
+            const superoRecord = (currentLevel > bestRun.level) || 
+                                 (currentLevel === bestRun.level && timeTaken < bestRun.time_spent);
 
-            if (!superaNivel && !mismoNivelMasRapido) {
-                console.log(`[SoulRat] Partida ignorada. Tu récord actual (${miMejorRecord.level}º en ${miMejorRecord.time_spent}s) es mejor o igual que este intento.`);
-                return; // Cortamos la ejecución aquí, no hace falta tocar la base de datos
+            if (superoRecord) {
+                // Actualizamos su récord existente en lugar de crear otra fila
+                const { error: updateError } = await supabaseClient
+                    .from('leaderboard')
+                    .update({
+                        level: currentLevel,
+                        kills: enemiesDefeated,
+                        time_spent: timeTaken,
+                        avatar_url: profileAvatarB64 || null,
+                        social_x: profileX || null,
+                        social_discord: profileDiscord || null,
+                        wallet: profileWallet || null,
+                        created_at: new Date().toISOString() // Actualizamos fecha para que cuente en el mes actual
+                    })
+                    .eq('id', bestRun.id);
+
+                if (updateError) throw updateError;
+                console.log("¡Récord actualizado con éxito!");
+            } else {
+                console.log("Partida completada, pero no superó el récord anterior.");
             }
-            
-            console.log(`[SoulRat] ¡Nuevo récord detectado! Superas tu marca anterior de Nivel ${miMejorRecord.level}.`);
-        }
 
-        // 2. Preparamos el objeto con los datos a guardar (incluye redes si las añadiste a Supabase)
-        const datosPartida = {
-            username: profileName,
-            level: currentLevel,
-            kills: enemiesDefeated,
-            time_spent: timeTaken,
-            avatar_url: profileAvatarB64 || null,
-            created_at: new Date().toISOString() // Actualiza la fecha para los reinicios
-        };
-
-        // Si las columnas de redes existen en tu Supabase, se envían automáticamente
-        if (profileX) datosPartida.social_x = profileX;
-        if (profileDiscord) datosPartida.social_discord = profileDiscord;
-        if (profileWallet) datosPartida.wallet = profileWallet;
-
-        // 3. Guardamos en la base de datos
-        if (records && records.length > 0) {
-            // Si ya existía, actualizamos su ID exacto para no duplicar filas
-            const { error: updateError } = await supabaseClient
-                .from('leaderboard')
-                .update(datosPartida)
-                .eq('id', records[0].id);
-                
-            if (updateError) throw updateError;
-            console.log("[SoulRat] El récord existente ha sido actualizado con éxito en la tabla.");
         } else {
-            // Si es un jugador completamente nuevo, insertamos normal
+            // 2. Si es la primera vez que juega este usuario, insertamos una fila nueva
             const { error: insertError } = await supabaseClient
                 .from('leaderboard')
-                .insert([datosPartida]);
-                
+                .insert([{
+                    username: profileName,
+                    level: currentLevel,
+                    kills: enemiesDefeated,
+                    time_spent: timeTaken,
+                    avatar_url: profileAvatarB64 || null,
+                    social_x: profileX || null,
+                    social_discord: profileDiscord || null,
+                    wallet: profileWallet || null
+                }]);
+
             if (insertError) throw insertError;
-            console.log("[SoulRat] Nuevo jugador registrado con éxito.");
+            console.log("Primer registro del jugador creado con éxito.");
         }
 
     } catch (err) { 
-        console.error("[SoulRat] Error crítico al guardar en Supabase:", err); 
+        console.error("Error al procesar la actividad en Supabase:", err); 
     }
 }
+
+async function fetchLeaderboard() {
+    const tbody = document.getElementById('leaderboard-body');
+    if(!supabaseClient) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Supabase sin configurar</td></tr>`;
+        return;
+    }
+    try {
+        let query = supabaseClient.from('leaderboard').select('*');
+        const now = new Date();
+
+        if (currentLeaderboardView === "MONTHLY") {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            query = query.gte('created_at', startOfMonth);
+        } else {
+            // Lógica para 'Semana pasada' (entre hace 14 días y hace 7 días)
+            const currentDay = now.getDay();
+            const distanceToLastMonday = (currentDay === 0 ? 6 : currentDay - 1) + 7;
+            
+            const startOfLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - distanceToLastMonday);
+            startOfLastWeek.setHours(0,0,0,0);
+            
+            const endOfLastWeek = new Date(startOfLastWeek.getTime());
+            endOfLastWeek.setDate(endOfLastWeek.getDate() + 7);
+
+            query = query.gte('created_at', startOfLastWeek.toISOString()).lt('created_at', endOfLastWeek.toISOString());
+        }
+
+        let { data, error } = await query
+            .order('level', { ascending: false })
+            .order('time_spent', { ascending: true })
+            .limit(10);
+
+        if (error) throw error;
+
+        leaderboardDataCached = data || [];
+        tbody.innerHTML = "";
+        
+        if(leaderboardDataCached.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Sin records registrados</td></tr>`;
+            return;
+        }
+
+        leaderboardDataCached.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            tr.onclick = () => showPlayerDetails(index);
+            const avatarHtml = row.avatar_url ? `<img class='leaderboard-avatar' src='${row.avatar_url}' />` : `<span style='margin-right:4px;'>🐭</span>`;
+            tr.innerHTML = `
+                <td>${avatarHtml}${escapeHTML(row.username)}</td>
+                <td>${row.level}</td>
+                <td>${row.kills}</td>
+                <td>${row.time_spent}s</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Error d conexión</td></tr>`;
+    }
+}
+        
 
 async function fetchLeaderboard() {
     const tbody = document.getElementById('leaderboard-body');
