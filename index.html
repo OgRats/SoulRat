@@ -20,7 +20,6 @@
         }    
         canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; transition: filter 0.3s ease; }    
         
-        /* Efecto Blur dinámico cuando el juego está corriendo o pausado */
         .blur-bg { filter: blur(6px); }
 
         .screen {    
@@ -67,7 +66,6 @@
             image-rendering: pixelated; transition: transform 0.1s ease, filter 0.2s ease; z-index: 21;    
         }    
         .btn-custom:hover { filter: brightness(1.1); }    
-        /* Efecto feedback clic-presionado */
         .btn-custom:active { transform: scale(0.92); }
 
         .btn-blue { background-color: #3498db; border-radius: 4px; }    
@@ -78,19 +76,24 @@
         .btn-social { width: 120px; height: 40px; font-size: 8px; }    
         .stats-text { font-size: 10px; line-height: 1.8; text-align: center; margin: 15px 0; color: #f1c40f; }    
         
+        /* Esquinas de acciones */
         .top-right-corner {    
             position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; z-index: 30;    
+        }    
+        .top-left-corner {    
+            position: absolute; top: 16px; left: 16px; display: flex; gap: 10px; z-index: 30;    
         }    
         .btn-corner {    
             width: 48px; height: 44px; font-family: 'Press Start 2P', monospace; font-size: 8px;    
             color: white; border: none; cursor: pointer; display: flex; justify-content: center;     
             align-items: center; background-size: 100% 100%; image-rendering: pixelated; transition: transform 0.1s;
+            background-color: transparent;
         }    
         .btn-corner:active { transform: scale(0.9); }
 
         .profile-input {    
-            background: #111; border: 2px solid #3498db; color: white; padding: 8px;    
-            font-family: 'Press Start 2P'; font-size: 10px; text-align: center; width: 220px; margin: 10px 0;    
+            background: #111; border: 2px solid #3498db; color: white; padding: 6px;    
+            font-family: 'Press Start 2P'; font-size: 8px; text-align: center; width: 240px; margin: 6px 0;    
         }    
         
         .setting-row {    
@@ -101,19 +104,27 @@
             font-family: 'Press Start 2P'; font-size: 8px; background: #111; color: #fff; border: 1px solid #fff;    
         }    
 
-        /* Estilos Avatar y Tabla Leaderboard */
         .avatar-preview { width: 48px; height: 48px; object-fit: cover; border: 2px solid #fff; margin-bottom: 10px; }
-        .leaderboard-table { width: 100%; max-width: 340px; border-collapse: collapse; font-size: 7px; margin-bottom: 15px; }
+        .leaderboard-table { width: 100%; max-width: 360px; border-collapse: collapse; font-size: 7px; margin-bottom: 10px; }
         .leaderboard-table th, .leaderboard-table td { padding: 6px; border: 1px solid #3498db; text-align: left; }
         .leaderboard-table th { background: #151522; color: #f1c40f; }
+        .leaderboard-table tbody tr { cursor: pointer; }
+        .leaderboard-table tbody tr:hover { background: rgba(52, 152, 219, 0.2); }
         .leaderboard-avatar { width: 16px; height: 16px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
+        
+        .countdown-text { font-size: 7px; color: #e74c3c; margin-bottom: 10px; text-align: center; }
+        .info-card { background: #0b0b12; border: 3px solid #3498db; padding: 15px; width: 280px; text-align: center; font-size: 8px; line-height: 1.6; }
     </style>    
 </head>    
 <body>    
     
 <div id="game-container">    
+    <div class="top-left-corner" id="menu-left-actions">
+        <button class="btn-corner" id="btn-profile-cfg" style="background-image: url('assets/btn_azul.png'); font-size: 14px;">👤</button>
+    </div>
+
     <div class="top-right-corner" id="menu-corner-actions">    
-        <button class="btn-corner" id="btn-menu-corner-fs" style="background-image: url('assets/btn_rojo.png'); background-color: transparent;">FS</button>    
+        <button class="btn-corner" id="btn-menu-corner-fs" style="background-image: url('assets/btn_rojo.png');">FS</button>    
     </div>    
     
     <div id="menu-screen" class="screen">    
@@ -121,7 +132,6 @@
         <h1>SOULRAT</h1>    
         <div id="main-buttons" style="display: flex; flex-direction: column; align-items: center;">    
             <button class="btn-custom btn-blue" id="btn-main-play">PLAY</button>    
-            <button class="btn-custom btn-blue" id="btn-profile-cfg">PERFIL</button>    
             <button class="btn-custom btn-blue" id="btn-leaderboard-open">LEADERBOARD</button>
             <button class="btn-custom btn-yellow" id="btn-settings-main">SETTINGS</button>    
         </div>    
@@ -161,14 +171,18 @@
     <div id="profile-screen" class="screen hidden">    
         <h2>CONFIGURAR PERFIL</h2>    
         <img id="avatar-img-view" class="avatar-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'><rect width='48' height='48' fill='%23444'/></svg>" alt="avatar">
-        <input type="file" id="input-profile-file" accept="image/*" style="font-size: 8px; margin-bottom: 10px; width: 200px;">
-        <input type="text" id="input-profile-name" class="profile-input" value="Player1" maxlength="10">    
+        <input type="file" id="input-profile-file" accept="image/*" style="font-size: 6px; margin-bottom: 6px; width: 200px;">
+        <input type="text" id="input-profile-name" class="profile-input" placeholder="Nombre (Máx 10)" maxlength="10">    
+        <input type="text" id="input-profile-x" class="profile-input" placeholder="@ de X (Twitter)">    
+        <input type="text" id="input-profile-discord" class="profile-input" placeholder="Usuario de Discord">    
+        <input type="text" id="input-profile-wallet" class="profile-input" placeholder="Dirección Wallet">    
         <button class="btn-custom btn-blue" id="btn-profile-save">GUARDAR</button>    
     </div>    
 
     <div id="leaderboard-screen" class="screen hidden">
-        <h2>LEADERBOARD MENSUAL</h2>
-        <div style="overflow-y: auto; max-height: 250px; width: 100%; display: flex; justify-content: center;">
+        <h2 id="leaderboard-title">LEADERBOARD MENSUAL</h2>
+        <div class="countdown-text" id="leaderboard-countdown">Calculando reinicio...</div>
+        <div style="overflow-y: auto; max-height: 200px; width: 100%; display: flex; justify-content: center;">
             <table class="leaderboard-table">
                 <thead>
                     <tr><th>Jugador</th><th>Nivel</th><th>Kills</th><th>Tiempo</th></tr>
@@ -178,7 +192,24 @@
                 </tbody>
             </table>
         </div>
-        <button class="btn-custom btn-red" id="btn-leaderboard-back">VOLVER</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+            <button class="btn-custom btn-blue" id="btn-leaderboard-toggle" style="width: 160px; height: 32px; font-size: 7px;">VER SEMANA PASADA</button>
+        </div>
+        <button class="btn-custom btn-red" id="btn-leaderboard-back" style="height: 35px; width: 160px;">VOLVER</button>
+    </div>
+
+    <div id="player-details-screen" class="screen hidden">
+        <h2>DETALLES DEL JUGADOR</h2>
+        <div class="info-card">
+            <img id="detail-avatar" class="avatar-preview" src="" alt="avatar" style="width:64px; height:64px;"><br>
+            <strong id="detail-name" style="color:#f1c40f; font-size:11px;">-</strong><br><br>
+            <div style="text-align: left; word-break: break-all;">
+                <p><strong>❌ X:</strong> <span id="detail-x">Ninguno</span></p>
+                <p><strong>👾 Discord:</strong> <span id="detail-discord">Ninguno</span></p>
+                <p><strong>👛 Wallet:</strong> <span id="detail-wallet">Ninguno</span></p>
+            </div>
+        </div>
+        <button class="btn-custom btn-red" id="btn-details-back" style="height: 35px; width: 160px; margin-top: 15px;">VOLVER</button>
     </div>
     
     <div id="end-screen" class="screen hidden">    
@@ -197,7 +228,6 @@
     
 <script>    
 // --- CONFIGURACIÓN DE SUPABASE ---
-// Reemplaza estos dos valores con los credenciales que obtendrás en el Paso 2
 const SUPABASE_URL = "https://stgvnxxfkeeyoajxourf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0Z3ZueHhma2VleW9hanhvdXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMDg0ODUsImV4cCI6MjA5ODg4NDQ4NX0.OfE4f7ZVY3bRz6VlScy3iq3C5JFTYNYP0zckSdab9Lo";
 let supabaseClient = null;
@@ -229,11 +259,15 @@ function startMusic() { if (musicEnabled) bgMusic.play().catch(() => {}); }
 window.addEventListener('click', startMusic, { once: true });    
 window.addEventListener('touchstart', startMusic, { once: true });    
     
-function playSFX(src) {    
+// Pool estático para optimizar memoria (Evita lag)
+const sfxShoot = new Audio('assets/shoot.mp3');
+const sfxPickup = new Audio('assets/pickup.mp3');
+
+function playSFX(audioObj) {    
     if(!sfxEnabled) return;    
-    const sfx = new Audio(`assets/${src}`);    
-    sfx.volume = bgMusic.volume * 1.2;    
-    sfx.play().catch(() => {});    
+    audioObj.volume = bgMusic.volume * 1.2;    
+    audioObj.currentTime = 0;
+    audioObj.play().catch(() => {});    
 }    
     
 // --- ASSETS ---    
@@ -254,6 +288,9 @@ assetNames.forEach(name => {
         if(name.startsWith('btn_largo_')) applyButtonSprite(name);
         if(name === 'btn_rojo.png') {
             document.getElementById('btn-menu-corner-fs').style.backgroundImage = `url('assets/btn_rojo.png')`;
+        }
+        if(name === 'btn_azul.png') {
+            document.getElementById('btn-profile-cfg').style.backgroundImage = `url('assets/btn_azul.png')`;
         }
     };    
     img.onerror = () => {    
@@ -280,8 +317,17 @@ let gameState = 'MENU';
 let currentLevel = 1;    
 let maxUnlockedLevel = parseInt(localStorage.getItem('soulrat_unlocked_level')) || 1;     
 let controlsType = 'JOYSTICK';     
+
+// Estados del Perfil
 let profileName = localStorage.getItem('soulrat_username') || "Player1";    
 let profileAvatarB64 = localStorage.getItem('soulrat_avatar') || ""; 
+let profileX = localStorage.getItem('soulrat_x') || "";
+let profileDiscord = localStorage.getItem('soulrat_discord') || "";
+let profileWallet = localStorage.getItem('soulrat_wallet') || "";
+
+let currentLeaderboardView = "MONTHLY"; // MONTHLY o LAST_WEEK
+let leaderboardDataCached = [];
+
 let previewTimer = 0;    
 let levelTimer = 180;     
 let lastTime = 0;    
@@ -318,8 +364,11 @@ let items = [];
 let floatTexts = [];     
 let animatedVFX = [];    
 
-// Inicializar interfaz de perfil guardado
+// Cargar campos guardados en los inputs del perfil
 document.getElementById('input-profile-name').value = profileName;
+document.getElementById('input-profile-x').value = profileX;
+document.getElementById('input-profile-discord').value = profileDiscord;
+document.getElementById('input-profile-wallet').value = profileWallet;
 if(profileAvatarB64) document.getElementById('avatar-img-view').src = profileAvatarB64;
     
 // --- SELECTOR DE NIVEL ---    
@@ -341,10 +390,11 @@ function updateLevelButtons() {
     
 // --- INTERACCIONES INTERFAZ ---    
 document.getElementById('btn-profile-cfg').addEventListener('click', (e) => {    
-    e.stopPropagation(); document.getElementById('profile-screen').classList.remove('hidden');    
+    e.stopPropagation(); 
+    document.getElementById('profile-screen').classList.remove('hidden');    
+    document.getElementById('menu-left-actions').classList.add('hidden');
 });    
 
-// Conversión de imagen de perfil subida a Base64 para almacenar fácilmente
 document.getElementById('input-profile-file').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -360,9 +410,18 @@ document.getElementById('input-profile-file').addEventListener('change', functio
 document.getElementById('btn-profile-save').addEventListener('click', (e) => {    
     e.stopPropagation(); 
     profileName = document.getElementById('input-profile-name').value.trim() || "Player1";    
+    profileX = document.getElementById('input-profile-x').value.trim();
+    profileDiscord = document.getElementById('input-profile-discord').value.trim();
+    profileWallet = document.getElementById('input-profile-wallet').value.trim();
+
     localStorage.setItem('soulrat_username', profileName);
+    localStorage.setItem('soulrat_x', profileX);
+    localStorage.setItem('soulrat_discord', profileDiscord);
+    localStorage.setItem('soulrat_wallet', profileWallet);
     if(profileAvatarB64) localStorage.setItem('soulrat_avatar', profileAvatarB64);
+
     document.getElementById('profile-screen').classList.add('hidden');    
+    document.getElementById('menu-left-actions').classList.remove('hidden');
 });    
 
 document.getElementById('btn-main-play').addEventListener('click', (e) => {    
@@ -384,6 +443,7 @@ document.getElementById('btn-restart').addEventListener('click', (e) => {
     e.stopPropagation(); document.getElementById('end-screen').classList.add('hidden');    
     document.getElementById('menu-screen').classList.remove('hidden'); document.getElementById('main-buttons').classList.remove('hidden');    
     document.getElementById('level-area').classList.add('hidden'); document.getElementById('menu-corner-actions').classList.remove('hidden');    
+    document.getElementById('menu-left-actions').classList.remove('hidden');
     canvas.classList.remove('blur-bg');
     gameState = 'MENU';    
 });    
@@ -393,19 +453,47 @@ document.getElementById('btn-quit').addEventListener('click', (e) => {
     e.stopPropagation(); document.getElementById('settings-screen').classList.add('hidden');    
     document.getElementById('menu-screen').classList.remove('hidden'); document.getElementById('main-buttons').classList.remove('hidden');    
     document.getElementById('menu-corner-actions').classList.remove('hidden');    
+    document.getElementById('menu-left-actions').classList.remove('hidden');
     canvas.classList.remove('blur-bg');
     gameState = 'MENU';    
 });    
 
-// Eventos Leaderboard
+// Eventos Leaderboard & Toggles
 document.getElementById('btn-leaderboard-open').addEventListener('click', async (e) => {
     e.stopPropagation();
     document.getElementById('leaderboard-screen').classList.remove('hidden');
+    document.getElementById('menu-left-actions').classList.add('hidden');
+    currentLeaderboardView = "MONTHLY";
+    updateCountdownText();
     await fetchLeaderboard();
 });
 document.getElementById('btn-leaderboard-back').addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('leaderboard-screen').classList.add('hidden');
+    document.getElementById('menu-left-actions').classList.remove('hidden');
+});
+
+document.getElementById('btn-leaderboard-toggle').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if(currentLeaderboardView === "MONTHLY") {
+        currentLeaderboardView = "LAST_WEEK";
+        document.getElementById('leaderboard-title').innerText = "SEMANA PASADA";
+        document.getElementById('btn-leaderboard-toggle').innerText = "VER MES ACTUAL";
+        document.getElementById('leaderboard-countdown').style.display = "none";
+    } else {
+        currentLeaderboardView = "MONTHLY";
+        document.getElementById('leaderboard-title').innerText = "LEADERBOARD MENSUAL";
+        document.getElementById('btn-leaderboard-toggle').innerText = "VER SEMANA PASADA";
+        document.getElementById('leaderboard-countdown').style.display = "block";
+        updateCountdownText();
+    }
+    await fetchLeaderboard();
+});
+
+document.getElementById('btn-details-back').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('player-details-screen').classList.add('hidden');
+    document.getElementById('leaderboard-screen').classList.remove('hidden');
 });
     
 // Manejo de Cambios en Panel Settings    
@@ -415,18 +503,20 @@ document.getElementById('check-sfx').addEventListener('change', (e) => { sfxEnab
 document.getElementById('range-vol').addEventListener('input', (e) => { bgMusic.volume = e.target.value; });    
     
 document.getElementById('btn-share-x').addEventListener('click', () => {    
-    let text = encodeURIComponent(`🎮 ¡He completado el nivel ${currentLevel} en SoulRat! Perfil: ${profileName} | Bajas: ${enemiesDefeated} | Puntuación registrada en Supabase. @OgRats`);    
+    let text = encodeURIComponent(`🎮 ¡He completado el nivel ${currentLevel} en SoulRat! Perfil: ${profileName} | Bajas: ${enemiesDefeated} @OgRats`);    
     window.open(`https://x.com/intent/tweet?text=${text}`);    
 });    
     
 function toggleSettings(show) {    
     if(show) { 
         document.getElementById('settings-screen').classList.remove('hidden'); 
+        document.getElementById('menu-left-actions').classList.add('hidden');
         previousState = gameState; gameState = 'SETTINGS'; 
         canvas.classList.add('blur-bg');
     }     
     else { 
         document.getElementById('settings-screen').classList.add('hidden'); 
+        if (previousState === 'MENU') document.getElementById('menu-left-actions').classList.remove('hidden');
         gameState = previousState; 
         if(gameState === 'PLAYING') canvas.classList.remove('blur-bg');
     }    
@@ -561,6 +651,7 @@ function startLevel(level) {
     levelStartTime = Date.now();
     document.getElementById('menu-screen').classList.add('hidden');    
     document.getElementById('menu-corner-actions').classList.add('hidden');    
+    document.getElementById('menu-left-actions').classList.add('hidden');
     document.getElementById('btn-next-level').classList.add('hidden');     
     document.getElementById('btn-retry-level').classList.add('hidden');    
     canvas.classList.remove('blur-bg');
@@ -578,8 +669,6 @@ async function triggerEndGame(victory) {
         document.getElementById('end-title').innerText = "¡VICTORIA!"; document.getElementById('end-title').style.color = "#2ecc71";    
         if (currentLevel === maxUnlockedLevel && maxUnlockedLevel < 50) { maxUnlockedLevel++; localStorage.setItem('soulrat_unlocked_level', maxUnlockedLevel); }    
         if(currentLevel < 50) document.getElementById('btn-next-level').classList.remove('hidden');    
-        
-        // Enviar datos de la corrida a Supabase si está configurado
         await saveRunToSupabase(timeTaken);
     } else {    
         document.getElementById('end-title').innerText = "GAME OVER"; document.getElementById('end-title').style.color = "#e74c3c";    
@@ -628,7 +717,7 @@ function fireBullet(entity, isPlayer, targetAngle = null) {
     if(isPlayer) {    
         if(now - lastPlayerShot < 300 || player.bullets <= 0 || player.isDead) return;    
         lastPlayerShot = now; player.bullets--;    
-        playSFX('shoot.mp3');    
+        playSFX(sfxShoot);    
     } else {    
         if(now - entity.lastShot < 1000) return;    
         entity.lastShot = now;    
@@ -679,6 +768,12 @@ function update(dt) {
             if (keys['arrowleft'] || keys['a']) mx = -1; if (keys['arrowright'] || keys['d']) mx = 1;    
         } else if(joystick.active) { mx = joystick.dirX; my = joystick.dirY; }    
     
+        // Normalización para solucionar la velocidad duplicada en diagonales
+        if(mx !== 0 && my !== 0) {    
+            mx *= 0.7071;    
+            my *= 0.7071;    
+        }
+
         if(mx !== 0 || my !== 0) {    
             let nX = player.x + mx * player.speed * dt;    
             let nY = player.y + my * player.speed * dt;    
@@ -704,7 +799,6 @@ function update(dt) {
         }    
     }    
     
-    // Balas y mitigación de daños solicitada (50% menos daño de enemigos)   
     for(let i = bullets.length - 1; i >= 0; i--) {    
         let b = bullets[i]; b.x += b.vx * dt; b.y += b.vy * dt;    
         if(mapGrid[Math.floor(b.y/tileSize)]?.[Math.floor(b.x/tileSize)] === 'WALL') { bullets.splice(i, 1); continue; }    
@@ -726,11 +820,11 @@ function update(dt) {
         } else if(!player.isDead && Math.hypot(b.x - player.x, b.y - player.y) < player.radius + 6) {    
             bullets.splice(i, 1);    
             if(player.def > 0) { 
-                player.def = Math.max(0, player.def - 7); // Daño base reducido a la mitad en escudo
+                player.def = Math.max(0, player.def - 7); 
                 addFloatingText(player.x, player.y - 20, "-7 DEF", "#5dade2"); 
             }     
             else { 
-                player.hp -= 6; // Daño base al jugador reducido de 12 a 6 (50% menos daño)
+                player.hp -= 6; 
                 addFloatingText(player.x, player.y - 20, "-6 HP", "#e74c3c"); 
                 if(player.hp <= 0) { player.hp = 0; player.isDead = true; setTimeout(() => triggerEndGame(false), 1200); } 
             }    
@@ -767,7 +861,7 @@ function update(dt) {
     for(let i = items.length - 1; i >= 0; i--) {    
         let it = items[i]; it.floatOffset += dt * 3;    
         if(!player.isDead && Math.hypot(player.x - it.x, player.y - it.y) < player.radius + 16) {    
-            playSFX('pickup.mp3');    
+            playSFX(sfxPickup);    
             
             if(it.type === 'vault') {    
                 animatedVFX.push({ x: it.x, y: it.y, frame: 0, maxFrames: 3, time: 0 });    
@@ -904,7 +998,6 @@ function draw() {
     
     ctx.restore();    
     
-    // HUD Fijo
     if(gameState === 'PREVIEW') {    
         ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, canvas.width, canvas.height);    
         ctx.fillStyle = '#fff'; ctx.font = '10px "Press Start 2P"'; ctx.textAlign = 'center';    
@@ -954,7 +1047,7 @@ function draw() {
     }    
 }    
 
-// --- ACCIONES SUPABASE (GUARDADO Y RESET MENSUAL SIMULADO DE FORMA EFICIENTE) ---
+// --- ACCIONES SUPABASE ACTUALIZADAS ---
 async function saveRunToSupabase(timeTaken) {
     if(!supabaseClient) return;
     try {
@@ -963,7 +1056,10 @@ async function saveRunToSupabase(timeTaken) {
             level: currentLevel,
             kills: enemiesDefeated,
             time_spent: timeTaken,
-            avatar_url: profileAvatarB64 || null
+            avatar_url: profileAvatarB64 || null,
+            social_x: profileX || null,
+            social_discord: profileDiscord || null,
+            wallet: profileWallet || null
         }]);
     } catch (err) { console.error("Error guardando corrida:", err); }
 }
@@ -975,28 +1071,44 @@ async function fetchLeaderboard() {
         return;
     }
     try {
-        // Obtenemos el inicio del mes actual para aplicar el Reset Mensual dinámico directamente desde la consulta
+        let query = supabaseClient.from('leaderboard').select('*');
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-        let { data, error } = await supabaseClient
-            .from('leaderboard')
-            .select('*')
-            .gte('created_at', startOfMonth) // Filtra registros solo de este mes
+        if (currentLeaderboardView === "MONTHLY") {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            query = query.gte('created_at', startOfMonth);
+        } else {
+            // Lógica para 'Semana pasada' (entre hace 14 días y hace 7 días)
+            const currentDay = now.getDay();
+            const distanceToLastMonday = (currentDay === 0 ? 6 : currentDay - 1) + 7;
+            
+            const startOfLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - distanceToLastMonday);
+            startOfLastWeek.setHours(0,0,0,0);
+            
+            const endOfLastWeek = new Date(startOfLastWeek.getTime());
+            endOfLastWeek.setDate(endOfLastWeek.getDate() + 7);
+
+            query = query.gte('created_at', startOfLastWeek.toISOString()).lt('created_at', endOfLastWeek.toISOString());
+        }
+
+        let { data, error } = await query
             .order('level', { ascending: false })
             .order('time_spent', { ascending: true })
             .limit(10);
 
         if (error) throw error;
 
+        leaderboardDataCached = data || [];
         tbody.innerHTML = "";
-        if(data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Sin records este mes</td></tr>`;
+        
+        if(leaderboardDataCached.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Sin records registrados</td></tr>`;
             return;
         }
 
-        data.forEach(row => {
+        leaderboardDataCached.forEach((row, index) => {
             const tr = document.createElement('tr');
+            tr.onclick = () => showPlayerDetails(index);
             const avatarHtml = row.avatar_url ? `<img class='leaderboard-avatar' src='${row.avatar_url}' />` : `<span style='margin-right:4px;'>🐭</span>`;
             tr.innerHTML = `
                 <td>${avatarHtml}${escapeHTML(row.username)}</td>
@@ -1009,6 +1121,33 @@ async function fetchLeaderboard() {
     } catch (err) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#e74c3c;">Error de conexión</td></tr>`;
     }
+}
+
+// Cuenta regresiva dinámica al final del mes
+function updateCountdownText() {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diffTime = nextMonth - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    document.getElementById('leaderboard-countdown').innerText = `PRÓXIMO REINICIO EN: ${diffDays} DÍAS`;
+}
+
+// Mostrar tarjeta de detalles del jugador cliqueado
+function showPlayerDetails(index) {
+    const playerRow = leaderboardDataCached[index];
+    if(!playerRow) return;
+
+    document.getElementById('leaderboard-screen').className = "screen hidden";
+    const detailsScreen = document.getElementById('player-details-screen');
+    detailsScreen.classList.remove('hidden');
+
+    document.getElementById('detail-name').innerText = playerRow.username;
+    document.getElementById('detail-avatar').src = playerRow.avatar_url || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'><rect width='48' height='48' fill='%23444'/></svg>";
+    
+    document.getElementById('detail-x').innerText = playerRow.social_x || "No asignado";
+    document.getElementById('detail-discord').innerText = playerRow.social_discord || "No asignado";
+    document.getElementById('detail-wallet').innerText = playerRow.wallet || "No asignado";
 }
 
 function escapeHTML(str) {
